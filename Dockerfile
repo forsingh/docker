@@ -1,4 +1,19 @@
-FROM java:8-jdk
+FROM ubuntu:14.04
+
+RUN mkdir -p /DOCKER_SOURCE
+COPY  * /DOCKER_SOURCE/
+
+# INSTALL JAVA 
+
+RUN apt-get update
+RUN apt-get install software-properties-common -y
+RUN add-apt-repository ppa:webupd8team/java -y
+RUN apt-get update
+RUN echo debconf shared/accepted-oracle-license-v1-1 select true | debconf-set-selections
+RUN apt-get install oracle-java8-installer -y
+RUN apt-get install oracle-java8-set-default
+
+
 
 RUN apt-get update && apt-get install -y wget git curl zip && rm -rf /var/lib/apt/lists/*
 
@@ -45,6 +60,60 @@ EXPOSE 8080
 # will be used by attached slave agents:
 EXPOSE 50000
 
+
+# INSTALL MONGO
+
+ENV GPG_KEYS \
+	DFFA3DCF326E302C4787673A01C4E7FAAAB2461C \
+	42F3E95A2C4F08279C4960ADD68FA50FEA312927
+RUN set -ex \
+	&& for key in $GPG_KEYS; do \
+		apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
+	done
+
+ENV MONGO_MAJOR 3.2
+ENV MONGO_VERSION 3.2.1
+
+RUN echo "deb http://repo.mongodb.org/apt/debian wheezy/mongodb-org/$MONGO_MAJOR main" > /etc/apt/sources.list.d/mongodb-org.list
+
+RUN set -x \
+	&& apt-get update \
+	&& apt-get install -y \
+		mongodb-org=$MONGO_VERSION \
+		mongodb-org-server=$MONGO_VERSION \
+		mongodb-org-shell=$MONGO_VERSION \
+		mongodb-org-mongos=$MONGO_VERSION \
+		mongodb-org-tools=$MONGO_VERSION \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& rm -rf /var/lib/mongodb \
+	&& mv /etc/mongod.conf /etc/mongod.conf.orig
+
+
+
+
+#INSTALL RUBY 
+
+RUN apt-get install -y curl wget git
+
+# Install ruby 2.0.0
+# ---------------------
+#RUN apt-get install -y build-essential libreadline-dev libssl-dev zlib1g-dev
+#RUN git clone https://github.com/sstephenson/rbenv.git ~/.rbenv
+#RUN git clone https://github.com/sstephenson/ruby-build.git ~/.rbenv/plugins/ruby-build
+#ENV PATH $HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH
+#RUN rbenv install 2.0.0-p481
+#RUN rbenv global 2.0.0-p481
+
+
+RUN gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+
+RUN curl -sSL https://get.rvm.io | bash -s stable --ruby
+
+
+
+
+
+
 ENV COPY_REFERENCE_FILE_LOG $JENKINS_HOME/copy_reference_file.log
 
 USER jenkins
@@ -54,3 +123,4 @@ ENTRYPOINT ["/bin/tini", "--", "/usr/local/bin/jenkins.sh"]
 
 # from a derived Dockerfile, can use `RUN plugins.sh active.txt` to setup /usr/share/jenkins/ref/plugins from a support bundle
 COPY plugins.sh /usr/local/bin/plugins.sh
+
